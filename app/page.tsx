@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Send, Bot, User, Shield, TrendingUp, AlertTriangle } from "lucide-react"
+import { Send, Bot, User, Shield, TrendingUp, AlertTriangle, Trash2, History } from "lucide-react"
 
 interface Message {
   id: string
@@ -31,20 +31,76 @@ export default function FinBot() {
     const paddedMinutes = minutes.toString().padStart(2, "0")
     return `${hours12.toString().padStart(2, "0")}:${paddedMinutes} ${period}`
   }
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content:
-        "Hello! I'm FinBot, your AI Financial Assistant. I can help you understand banking terms, loans, investments, and protect you from fraud. What financial question can I help you with today?",
-      sender: "bot",
-      timestamp: new Date(),
-      sources: ["FinBot AI Assistant"],
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [puterStatus, setPuterStatus] = useState<"loading" | "ready" | "error">("loading")
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    const loadChatHistory = () => {
+      try {
+        const saved = localStorage.getItem("finbot-chat-history")
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Convert timestamp strings back to Date objects
+            const messagesWithDates = parsed.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            }))
+            setMessages(messagesWithDates)
+            return
+          }
+        }
+        // No saved history, show welcome message
+        setMessages([{
+          id: "1",
+          content: "Hello! I'm FinBot, your AI Financial Assistant. I can help you understand banking terms, loans, investments, and protect you from fraud. What financial question can I help you with today?",
+          sender: "bot",
+          timestamp: new Date(),
+          sources: ["FinBot AI Assistant"],
+        }])
+      } catch (error) {
+        console.log("Failed to load chat history:", error)
+        // Fallback to welcome message
+        setMessages([{
+          id: "1",
+          content: "Hello! I'm FinBot, your AI Financial Assistant. I can help you understand banking terms, loans, investments, and protect you from fraud. What financial question can I help you with today?",
+          sender: "bot",
+          timestamp: new Date(),
+          sources: ["FinBot AI Assistant"],
+        }])
+      }
+    }
+
+    loadChatHistory()
+  }, [])
+
+  // Save chat history to localStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem("finbot-chat-history", JSON.stringify(messages))
+      } catch (error) {
+        console.log("Failed to save chat history:", error)
+      }
+    }
+  }, [messages])
+
+  const clearChatHistory = () => {
+    setMessages([{
+      id: "1",
+      content: "Hello! I'm FinBot, your AI Financial Assistant. I can help you understand banking terms, loans, investments, and protect you from fraud. What financial question can I help you with today?",
+      sender: "bot",
+      timestamp: new Date(),
+      sources: ["FinBot AI Assistant"],
+    }])
+    localStorage.removeItem("finbot-chat-history")
+    setShowClearConfirm(false)
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -123,10 +179,10 @@ export default function FinBot() {
     if (puterStatus === "ready" && window.puter?.ai) {
       try {
         const response: any = await window.puter.ai.chat(
-          `You are FinBot, a professional financial assistant.\n\nAnswer the user's question in clear, concise bullet points only. No preface, no closing lines. Use simple language and keep bullets short.\n\nQuestion: ${question}`,
+          `You are FinBot, a professional financial assistant specializing in banking, investments, loans, and financial security.\n\nProvide a comprehensive, detailed response to the user's question. Structure your answer with clear sections and use bullet points for easy reading. Include:\n- Detailed explanations of concepts\n- Practical examples when relevant\n- Important warnings or considerations\n- Actionable advice\n- Sources or references when appropriate\n\nBe thorough but accessible. Use professional language that's easy to understand.\n\nQuestion: ${question}`,
           {
             model: "gpt-4o-mini",
-            max_tokens: 800,
+            max_tokens: 1200,
             temperature: 0.7,
           }
         )
@@ -243,10 +299,10 @@ Thank you for your question: "${question}"
 
     try {
       const res: any = await window.puter.ai.chat(
-        `You are FinBot, a professional financial assistant.\n\nAnswer the user's question in clear, concise bullet points only. No preface, no closing lines. Use simple language and keep bullets short.\n\nQuestion: ${question}`,
+        `You are FinBot, a professional financial assistant specializing in banking, investments, loans, and financial security.\n\nProvide a comprehensive, detailed response to the user's question. Structure your answer with clear sections and use bullet points for easy reading. Include:\n- Detailed explanations of concepts\n- Practical examples when relevant\n- Important warnings or considerations\n- Actionable advice\n- Sources or references when appropriate\n\nBe thorough but accessible. Use professional language that's easy to understand.\n\nQuestion: ${question}`,
         {
           model: "gpt-4o-mini",
-          max_tokens: 800,
+          max_tokens: 1200,
           temperature: 0.7,
           stream: true,
         }
@@ -373,12 +429,23 @@ I'm here to help with banking, investments, loans, and security questions.`,
                 <p className="text-sm text-gray-600">AI Financial Assistant</p>
               </div>
             </div>
-            <Badge
-              variant={puterStatus === "ready" ? "default" : puterStatus === "loading" ? "secondary" : "destructive"}
-              className="text-xs"
-            >
-              {puterStatus === "ready" ? "AI Ready" : puterStatus === "loading" ? "Loading..." : "Offline Mode"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={puterStatus === "ready" ? "default" : puterStatus === "loading" ? "secondary" : "destructive"}
+                className="text-xs"
+              >
+                {puterStatus === "ready" ? "AI Ready" : puterStatus === "loading" ? "Loading..." : "Offline Mode"}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowClearConfirm(true)}
+                className="text-xs"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Clear Chat
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -520,6 +587,41 @@ I'm here to help with banking, investments, loans, and security questions.`,
           </div>
         </Card>
       </main>
+
+      {/* Clear Chat Confirmation Dialog */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Clear Chat History</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to clear all chat history? This will remove all previous conversations and start fresh.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowClearConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={clearChatHistory}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear History
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
