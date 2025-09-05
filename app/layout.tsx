@@ -5,9 +5,9 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'Finance Bot - AI Financial Assistant',
+  description: 'Your intelligent financial assistant for banking, investments, loans, and fraud protection. Get expert guidance on financial matters.',
+  generator: 'Next.js',
 }
 
 export default function RootLayout({
